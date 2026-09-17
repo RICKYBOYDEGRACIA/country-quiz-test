@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api-countries/:path*",
+      "destination": "https://api.restcountries.com/v5/:path*"
+    }
+  ]
+}
