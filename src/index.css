@@ -1,0 +1,11 @@
+:root {
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --gradient-primary: linear-gradient(90deg, #E65895 0%, #BC51B2 50%, #A66CD9 100%);
+  --panel-bg: #343963;
+  --unselected-panel: #393f6f;
+}
+
+.bg-gradient-primary {
+  background: var(--gradient-primary);
+}
