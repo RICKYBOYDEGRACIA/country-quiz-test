@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { fetchQuizQuestions } from "../services/quizService";
+import PopModal from "../components/PopModal";
 
 export default function Dashboard() {
   const [questions, setQuestions] = useState([]);
@@ -8,25 +9,40 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Function for restarts (called from user interaction)
+  const restartQuiz = async () => {
+    setLoading(true);
+    setError(null);
+    setUserAnswers({});
+    setCurrentIndex(0);
+    try {
+      const data = await fetchQuizQuestions();
+      setQuestions(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial fetch on mount without synchronous state updates in the effect
   useEffect(() => {
     let isMounted = true;
 
-    async function getQuestions() {
-      try {
-        setLoading(true);
-        const data = await fetchQuizQuestions();
+    fetchQuizQuestions()
+      .then((data) => {
         if (isMounted) {
           setQuestions(data);
           setLoading(false);
         }
-      } catch (err) {
+      })
+      .catch((err) => {
         if (isMounted) {
           setError(err.message);
           setLoading(false);
         }
-      }
-    }
-    getQuestions();
+      });
+
     return () => {
       isMounted = false;
     };
@@ -39,17 +55,18 @@ export default function Dashboard() {
     return selected === question?.names?.common ? acc + 1 : acc;
   }, 0);
 
+  const isQuizFinished =
+    questions.length > 0 &&
+    Object.keys(userAnswers).length === questions.length;
+
   const handleSelectOption = (option) => {
-    // Lock answer selection if this question was already answered
     if (userAnswers[currentIndex] !== undefined) return;
 
-    // Record the answer for current index
     setUserAnswers((prev) => ({
       ...prev,
       [currentIndex]: option,
     }));
 
-    // Auto-advance to next question if not at the last item
     if (currentIndex < questions.length - 1) {
       setTimeout(() => {
         setCurrentIndex((prev) => prev + 1);
@@ -73,12 +90,18 @@ export default function Dashboard() {
     );
   }
 
-  // Check state for the currently displayed question
   const currentAnswer = userAnswers[currentIndex];
   const isQuestionAnswered = currentAnswer !== undefined;
 
   return (
     <div className="flex flex-col justify-center h-screen sm:px-[2rem] md:px-[5rem] lg:px-[10rem] px-[.5rem]">
+      {isQuizFinished && (
+        <PopModal
+          score={score}
+          totalQuestions={questions.length}
+          onRestart={restartQuiz}
+        />
+      )}
       <div className="flex items-center justify-between w-full pb-[20px]">
         <div>
           <h1 className="text-[var(--color-white)] font-bold text-[25px]">
@@ -86,7 +109,7 @@ export default function Dashboard() {
           </h1>
         </div>
         <div className="flex bg-gradient-primary text-[var(--color-white)] px-[16px] py-[2px] rounded-xl">
-          <p>{score}/{questions.length} Points</p>
+          <p>{score}/{questions.length} Points</p>🏆
         </div>
       </div>
 
@@ -136,12 +159,13 @@ export default function Dashboard() {
             const isCorrect = option === currentQuestion?.names?.common;
 
             let buttonBg = "bg-gradient-primary";
+            let iconSrc = null;
 
             if (isQuestionAnswered) {
               if (isCorrect) {
-                buttonBg = "bg-green-600"; // Always show green for correct answer
+                iconSrc = "Check_round_fill.svg";
               } else if (isSelected) {
-                buttonBg = "bg-red-600"; // Show red if user picked wrong option
+                iconSrc = "Close_round_fill.svg"
               }
             }
 
@@ -150,9 +174,16 @@ export default function Dashboard() {
                 key={index}
                 disabled={isQuestionAnswered}
                 onClick={() => handleSelectOption(option)}
-                className={`${buttonBg} px-[42px] py-[10px] rounded-lg text-[var(--color-white)] whitespace-nowrap font-medium transition-all duration-200 cursor-pointer disabled:cursor-not-allowed text-center`}
+                className={`${buttonBg} px-[42px] py-[10px] flex justify-center gap-5 rounded-lg text-[var(--color-white)] whitespace-nowrap font-medium transition-all duration-200 cursor-pointer disabled:cursor-not-allowed text-center`}
               >
                 {option}
+                { iconSrc && (
+                  <img
+                    src={iconSrc}
+                    alt={isCorrect ? "Correct" : "Incorrect"}
+                    className="w-5 h-5 inline-block"
+                  />
+                )}
               </button>
             );
           })}
